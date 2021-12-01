@@ -25,14 +25,11 @@ def part_two():
 
 	# Slide window of 3 elements until the end
 	for i in range(2, len(nums)):
-		# Add the new element and get the sum
 		measurement += nums[i]
 
-		# Compare the new sum with previous sum
 		if measurement > prev_measurement: answer += 1
 		prev_measurement = measurement
-
-		# Slide the window
+		
 		measurement -= nums[i - 2]
 
 	print(f'Number depth measurement increases: {answer}')
