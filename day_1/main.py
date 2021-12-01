@@ -1,0 +1,44 @@
+import math
+
+
+def part_one():
+	prev_measurement = math.inf
+	answer = 0
+
+	with open('input.txt', 'r') as f:
+		for line in f:
+			measurement = int(line)
+			if measurement > prev_measurement: answer += 1
+			prev_measurement = measurement
+
+	print(f'Number of depth measurement increases: {answer}')
+
+
+def part_two():
+	with open('input.txt', 'r') as f:
+		nums = [int(line) for line in f.readlines()]
+
+	# Initialize values - current window is the first 2 elements
+	prev_measurement = math.inf
+	answer = 0
+	current_window = nums[:2]
+
+	# Slide window of 3 elements until the end
+	for i in range(2, len(nums)):
+		# Add the new element and get the sum
+		current_window.append(nums[i])
+		measurement = sum(current_window)
+
+		# Compare the new sum with previous sum
+		if measurement > prev_measurement: answer += 1
+		prev_measurement = measurement
+
+		# Slide the window
+		current_window.pop(0)
+
+	print(f'Number depth measurement increases: {answer}')
+	
+
+if __name__ == '__main__':
+	part_one()
+	part_two()
