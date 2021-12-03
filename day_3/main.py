@@ -30,16 +30,20 @@ def part_two():
 	with open('input.txt', 'r') as f:
 		lines_ = f.readlines()
 
-	def test(lines, criteria):
+	def get_rating(lines, criteria):
+		# Loop each index
 		for i in range(len(lines[0])):
+			# Return the final number
 			if len(lines) == 1:
 				return int(lines[0], 2)
 
+			# Determine which number is more common at index i
 			zeros, ones = 0, 0
 			for line in lines:
 				if line[i] == '0': zeros += 1
 				if line[i] == '1': ones += 1
 			
+			# Follow provided criteria
 			if criteria == 0:
 				if zeros > ones:
 					lines = [line for line in lines if line[i] == '0']
@@ -51,8 +55,8 @@ def part_two():
 				else:
 					lines = [line for line in lines if line[i] == '0']
 
-	o_rating = test(lines_, 0)
-	co2_rating = test(lines_, 1)
+	o_rating = get_rating(lines_, 0)
+	co2_rating = get_rating(lines_, 1)
 
 	print(f'Life support rating: {o_rating * co2_rating}')
 
