@@ -43,16 +43,11 @@ def part_two():
                 counts[(x, start[1])] += 1
 
         else:
-            counts[start] += 1
-            
-            while start != end:
-                if start[0] < end[0]: start = (start[0] + 1, start[1])
-                else: start = (start[0] - 1, start[1])
+            x = range(start[0], end[0] + 1) if start[0] < end[0] else range(start[0], end[0] - 1, -1)
+            y = range(start[1], end[1] + 1) if start[1] < end[1] else range(start[1], end[1] - 1, -1)
 
-                if start[1] < end[1]: start = (start[0], start[1] + 1)
-                else: start = (start[0], start[1] - 1)
-
-                counts[start] += 1
+            for c in zip(x, y):
+                counts[c] += 1
         
     print(f'Number of points with 2 or more overlaps: {sum(counts[key] >= 2 for key in counts)}')
 
