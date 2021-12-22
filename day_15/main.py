@@ -13,24 +13,24 @@ def part_one():
     costs = {(rows - 1, cols - 1): risks[-1][-1]}
 
     while stack:
-        curr = stack.pop()
+        x, y = stack.pop()
 
         # Get all existing adjacent points
         adj = set()
-        if curr[0] != rows - 1: adj.add((curr[0] + 1, curr[1]))
-        if curr[0] != 0: adj.add((curr[0] - 1, curr[1]))
-        if curr[1] != cols - 1: adj.add((curr[0], curr[1] + 1))
-        if curr[1] != 0: adj.add((curr[0], curr[1] - 1))
+        if x != rows - 1: adj.add((x + 1, y))
+        if x != 0: adj.add((x - 1, y))
+        if y != cols - 1: adj.add((x, y + 1))
+        if y != 0: adj.add((x, y - 1))
 
         # Set the cost of current position by taking min adjacent cost and adding current cost
-        costs[curr] = costs[min({a for a in adj if a in costs}, key=lambda p: costs[p])] + risks[curr[0]][curr[1]]
+        costs[(x, y)] = costs[min({a for a in adj if a in costs}, key=lambda p: costs[p])] + risks[x][y]
 
         # Push adjacent points with no established cost yet
         stack += {a for a in adj if a not in costs}
 
         # Push adjacent points that will need to have adjusted costs (better path found)
         for a in adj:
-            if a in costs and risks[a[0]][a[1]] + costs[curr] < costs[a]: stack.append(a)
+            if a in costs and risks[a[0]][a[1]] + costs[(x, y)] < costs[a]: stack.append(a)
 
     print(f'Least cost: {costs[(0, 0)] - risks[0][0]}')
 
@@ -59,24 +59,24 @@ def part_two():
     costs = {(rows - 1, cols - 1): risks[-1][-1]}
 
     while stack:
-        curr = stack.pop()
+        x, y = stack.pop()
 
         # Get all existing adjacent points
         adj = set()
-        if curr[0] != rows - 1: adj.add((curr[0] + 1, curr[1]))
-        if curr[0] != 0: adj.add((curr[0] - 1, curr[1]))
-        if curr[1] != cols - 1: adj.add((curr[0], curr[1] + 1))
-        if curr[1] != 0: adj.add((curr[0], curr[1] - 1))
+        if x != rows - 1: adj.add((x + 1, y))
+        if x != 0: adj.add((x - 1, y))
+        if y != cols - 1: adj.add((x, y + 1))
+        if y != 0: adj.add((x, y - 1))
 
         # Set the cost of current position by taking min adjacent cost and adding current cost
-        costs[curr] = costs[min({a for a in adj if a in costs}, key=lambda p: costs[p])] + risks[curr[0]][curr[1]]
+        costs[(x, y)] = costs[min({a for a in adj if a in costs}, key=lambda p: costs[p])] + risks[x][y]
 
         # Push adjacent points with no established cost yet
         stack += {a for a in adj if a not in costs}
 
         # Push adjacent points that will need to have adjusted costs (better path found)
-        for a in adj:
-            if a in costs and risks[a[0]][a[1]] + costs[curr] < costs[a]: stack.append(a)
+        for a, b in adj:
+            if (a, b) in costs and risks[a][b] + costs[(x, y)] < costs[(a, b)]: stack.append((a, b))
 
     print(f'Least cost: {costs[(0, 0)] - risks[0][0]}')
 
