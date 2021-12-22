@@ -44,6 +44,7 @@ def part_two():
     rows = len(risks)
 
     # Get real map (5x larger)
+    # Algorithm is not optimized, however, so execution took around 60 min on 15-inch MacBook Pro Mid-2016
     for r in range(rows):
         og = risks[r].copy()
         for i in range(1, 5):
@@ -82,5 +83,5 @@ def part_two():
 
 
 if __name__ == '__main__':
-    # part_one()
+    part_one()
     part_two()
