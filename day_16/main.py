@@ -38,10 +38,23 @@ class OperatorPacket(Packet):
         return f'{{uid: {str(self.uid)[:8]}, version: {self.version}, type_id: {self.type_id}, length_type_id: {self.length_type_id}, length_type_value: {self.length_type_value}, subpackets: {ids}}}'
 
     def add_subpacket(self, p: Packet) -> None:
+        """Adds subpack p to this packet's subpacket list.
+
+        Args:
+            p (Packet): Packet to add to subpacket list.
+
+        Raises:
+            ValueError: If anything but a packet is provided.
+        """
         if not isinstance(p, Packet): raise ValueError('A packet was not provided.')
         self.subpackets.append(p)
 
     def get_subpackets_bits(self) -> int:
+        """Get how many bits the subpackets list is composed of.
+
+        Returns:
+            int: Number of bits that packets in subpackets list are composed of.
+        """
         bits = 0
         for p in self.subpackets:
             bits += len(p.bits)
@@ -49,11 +62,22 @@ class OperatorPacket(Packet):
         return bits
 
     def has_all_packets(self) -> bool:
+        """Returns whether this packet has all its expected subpackets. Either specified number of packets
+        or specified number of bits.
+
+        Returns:
+            bool: Whether all subpackets are present in subpackets list.
+        """
         if self.length_type_id == 0 and self.get_subpackets_bits() == self.length_type_value: return True
         if self.length_type_id == 1 and len(self.subpackets) == self.length_type_value: return True
         return False
 
     def get_value(self) -> int:
+        """Calculates the value of a packet based on its specified operation.
+
+        Returns:
+            int: Value of packet
+        """
         values = [p.get_value() for p in self.subpackets]
         if self.type_id == 0: return sum(values)
         if self.type_id == 1: return math.prod(values)
@@ -64,8 +88,58 @@ class OperatorPacket(Packet):
         if self.type_id == 7: return 1 if values[0] == values[1] else 0
 
 def hex_to_binary(char: str) -> str:
+    """Converts the hex character to a binary string of exactly 4 characters.
+
+    Args:
+        char (str): Hex character to convert.
+
+    Raises:
+        ValueError: If a singular character is not provided.
+
+    Returns:
+        str: Binary string representation of hex character.
+    """
     if len(char) != 1: raise ValueError('Argument must be 1 character')
     return bin(int(char, 16))[2:].zfill(4)
+
+def parse_header(msg: str, cursor: int) -> (int, int, int):
+    """Parse the version and type id of a packet.
+
+    Args:
+        msg (str): Message that packet is within.
+        cursor (int): Current index that we are at.
+
+    Returns:
+        (int, int, int): The packet version, type id, and new cursor.
+    """
+    version, type_id = int(msg[cursor:cursor+3], 2), int(msg[cursor+3:cursor+6], 2)
+    cursor += 6
+    return version, type_id, cursor
+
+def parse_literal(msg: str, cursor: int) -> (int, int):
+    """Parse the remainder of the packet with the assumption that it is a literal.
+
+    Args:
+        msg (str): Message that packet is within.
+        cursor (int): Current index that we are at.
+
+    Returns:
+        (int, int): The parsed number and the new cursor location.
+    """
+    num = ''
+    while True:
+        num += msg[cursor+1:cursor+5]
+        cursor += 5
+        if msg[cursor - 5] == '0': break
+    return int(num, 2), cursor
+
+def parse_operator(msg: str, cursor: int):
+    length_type_id = int(msg[cursor], 2)
+    cursor += 1
+    value_length = 15 if length_type_id == 0 else 11
+    length_type_value = int(msg[cursor:cursor+value_length], 2)
+    cursor += value_length
+    return length_type_id, length_type_value, cursor
 
 
 def part_one():
@@ -79,9 +153,8 @@ def part_one():
     version_sum, superpackets, cursor = 0, [], 0
 
     # Get version and type id from binary string
-    version, type_id = int(msg[cursor:cursor+3], 2), int(msg[cursor+3:cursor+6], 2)
+    version, type_id, cursor = parse_header(msg, cursor)
     version_sum += version
-    cursor += 6
     
     # If first packet is literal, then version sum is just that packet's version
     if type_id == 4:
@@ -91,52 +164,35 @@ def part_one():
     # Get length type id, length type value, and add to superpackets list as outter wrapper
     # Length type id how many bits are in length type value and whether it's # of packets or total bits
     # 0 -> 15 bits -> total bits vs. 1 -> 11 bits -> # of subpackets
-    length_type_id = int(msg[cursor], 2)
-    cursor += 1
-    value_length = 15 if length_type_id == 0 else 11
-    length_type_value = int(msg[cursor:cursor+value_length], 2)
-    cursor += value_length
-    superpackets.append(OperatorPacket(msg[:cursor], version, type_id, length_type_id, length_type_value, []))
+    length_type_id, length_type_value, cursor = parse_operator(msg, cursor)
+    root_packet = OperatorPacket(msg[:cursor], version, type_id, length_type_id, length_type_value, [])
+    superpackets.append(root_packet)
     
     # While there is a packet that does not have all children parsed
     while superpackets:
         while True:
-            if superpackets and superpackets[-1].has_all_packets():
-                superpackets.pop()
-            else:
-                break
+            if superpackets and superpackets[-1].has_all_packets(): superpackets.pop()
+            else: break
+        if not superpackets: break
 
-        if not superpackets:
-            break
-
-        # Get starting point of new packet
+        # Get starting point
         initial_cursor = cursor
-
-        # Get latest superpacket and current packet's version, type id
         curr = superpackets[-1]
-        version, type_id = int(msg[cursor:cursor+3], 2), int(msg[cursor+3:cursor+6], 2)
+
+        # Get current packet's version, type id
+        version, type_id, cursor = parse_header(msg, cursor)
         version_sum += version
-        cursor += 6
 
         # If literal, simply parse it and add it as child to parent
         if type_id == 4:
-            num = ''
-
-            while True:
-                num += msg[cursor+1:cursor+5]
-                cursor += 5
-                if msg[cursor - 5] == '0': break
-            new_packet = LiteralPacket(msg[initial_cursor:cursor], version, type_id, int(num, 2))
+            num, cursor = parse_literal(msg, cursor)
+            new_packet = LiteralPacket(msg[initial_cursor:cursor], version, type_id, num)
             curr.add_subpacket(new_packet)
             continue
 
         # Otherwise, parse as an operator (which is complicated)
         # Get length type id and length type value
-        length_type_id = int(msg[cursor], 2)
-        cursor += 1
-        value_length = 15 if length_type_id == 0 else 11
-        length_type_value = int(msg[cursor:cursor+value_length], 2)
-        cursor += value_length
+        length_type_id, length_type_value, cursor = parse_operator(msg, cursor)
         new_packet = OperatorPacket(msg[initial_cursor:cursor], version, type_id, length_type_id, length_type_value, [])
         curr.add_subpacket(new_packet)
 
@@ -157,70 +213,48 @@ def part_two():
     version_sum, superpackets, cursor = 0, [], 0
 
     # Get version and type id from binary string
-    version, type_id = int(msg[cursor:cursor+3], 2), int(msg[cursor+3:cursor+6], 2)
+    version, type_id, cursor = parse_header(msg, cursor)
     version_sum += version
-    cursor += 6
     
     # If first packet is literal, then version sum is just that packet's version
     if type_id == 4:
-        num = ''
-        while True:
-            num += msg[cursor+1:cursor+5]
-            cursor += 5
-            if msg[cursor - 5] == '0': break
-        print(f'Value of packet: {int(num, 2)}')
+        num, cursor = parse_literal(msg, cursor)
+        print(f'Value of packet: {num}')
         return
     
     # Get length type id, length type value, and add to superpackets list as outter wrapper
     # Length type id how many bits are in length type value and whether it's # of packets or total bits
     # 0 -> 15 bits -> total bits vs. 1 -> 11 bits -> # of subpackets
-    length_type_id = int(msg[cursor], 2)
-    cursor += 1
-    value_length = 15 if length_type_id == 0 else 11
-    length_type_value = int(msg[cursor:cursor+value_length], 2)
-    cursor += value_length
+    length_type_id, length_type_value, cursor = parse_operator(msg, cursor)
     root_packet = OperatorPacket(msg[:cursor], version, type_id, length_type_id, length_type_value, [])
     superpackets.append(root_packet)
     
     # While there is a packet that does not have all children parsed
     while superpackets:
+        # Get rid of all packets that have all children
         while True:
-            if superpackets and superpackets[-1].has_all_packets():
-                superpackets.pop()
-            else:
-                break
+            if superpackets and superpackets[-1].has_all_packets(): superpackets.pop()
+            else: break
+        if not superpackets: break
 
-        if not superpackets:
-            break
-
-        # Get starting point of new packet
+        # Get starting point
         initial_cursor = cursor
-
-        # Get latest superpacket and current packet's version, type id
         curr = superpackets[-1]
-        version, type_id = int(msg[cursor:cursor+3], 2), int(msg[cursor+3:cursor+6], 2)
+
+        # Parse header
+        version, type_id, cursor = parse_header(msg, cursor)
         version_sum += version
-        cursor += 6
 
         # If literal, simply parse it and add it as child to parent
         if type_id == 4:
-            num = ''
-
-            while True:
-                num += msg[cursor+1:cursor+5]
-                cursor += 5
-                if msg[cursor - 5] == '0': break
-            new_packet = LiteralPacket(msg[initial_cursor:cursor], version, type_id, int(num, 2))
+            num, cursor = parse_literal(msg, cursor)
+            new_packet = LiteralPacket(msg[initial_cursor:cursor], version, type_id, num)
             curr.add_subpacket(new_packet)
             continue
 
         # Otherwise, parse as an operator (which is complicated)
         # Get length type id and length type value
-        length_type_id = int(msg[cursor], 2)
-        cursor += 1
-        value_length = 15 if length_type_id == 0 else 11
-        length_type_value = int(msg[cursor:cursor+value_length], 2)
-        cursor += value_length
+        length_type_id, length_type_value, cursor = parse_operator(msg, cursor)
         new_packet = OperatorPacket(msg[initial_cursor:cursor], version, type_id, length_type_id, length_type_value, [])
         curr.add_subpacket(new_packet)
 
